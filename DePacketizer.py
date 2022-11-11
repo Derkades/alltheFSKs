@@ -5,38 +5,43 @@
 # Absorbs bits (numpy arrays, strings, whatever), and emits packets, if found.
 #
 # Copyright 2014 Mark Jessop <mark.jessop@adelaide.edu.au>
-# 
+#
 # This library is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU Lesser General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
 import struct, crc16, logging, sys
 import numpy as np
+import enum
+
+
+class BufferState(enum.Enum):
+    APPEND = 1 # while waiting for enough bits to attempt to extract a full packet
+    SHIFT  = 2 # for when we have reached our maximum buffer size, and can just clock through bits
 
 
 class DePacketizer(object):
     """ Message DePacketizer Class """
-    def __init__(self, sync_bytes = '\xAB\xCD', payload_length_cap = 32, callback = False):
+    def __init__(self, sync_bytes = b'\xAB\xCD', payload_length_cap = 32, callback = False):
         self.sync_bytes = sync_bytes
         self.sync_length = len(sync_bytes) * 8
         self.payload_length_cap = payload_length_cap
         self.callback = callback
 
-        self.buffer_state = "APPEND" # "APPEND", while waiting for enough bits to attempt to extract a full packet, 
-                                     # "SHIFT", for when we have reached our maximum buffer size, and can just clock through bits. 
-        self.state = "NEED_MORE_DATA"
+        self.buffer_state: BufferState = BufferState.APPEND
+        # self.state = "NEED_MORE_DATA"
         self.buffer = np.array([]).astype(np.uint8)
 
-    # Test buffer for sync bytes. If found, check for the rest of the packet, if enough bits are available. 
+    # Test buffer for sync bytes. If found, check for the rest of the packet, if enough bits are available.
     def test_buffer(self):
         if len(self.buffer)> self.sync_length + 16: # Allow for different sync lengths.
             # Convert the first X bits to a string, and test against the sync bytes.
@@ -85,43 +90,43 @@ class DePacketizer(object):
                         if self.callback != False:
                             self.callback(payload)
                         # Clear the packet bits out of the buffer.
-                        self.buffer_state = "SHIFT"
+                        self.buffer_state = BufferState.SHIFT
                         # TODO
                     else:
                         # Packet failed CRC. Continue clocking through bits in case this was a false positive.
                         logging.debug("CRC Check failed. False positive on sync?")
-                        self.buffer_state = "SHIFT"
+                        self.buffer_state = BufferState.SHIFT
                         return
                 else:
                     # We need more bits. Make sure new bits are appended, so we don't shift out our sync header.
-                    self.buffer_state = "APPEND"
+                    self.buffer_state = BufferState.APPEND
                     return
             else:
                 # No sync header match. Continue clocking bits through.
-                self.buffer_state = "SHIFT"
+                self.buffer_state = BufferState.SHIFT
                 return
         else:
             # We need more bits to check the sync header.
-            self.buffer_state = "APPEND"
+            self.buffer_state = BufferState.APPEND
             return
 
     def process_bit(self,bit):
         # This function only takes np.uint8's
         if type(bit) != np.uint8:
             bit = np.uint8(bit)
-        if bit != 0 and bit != 1:  # This should never happen, but anyway... 
+        if bit != 0 and bit != 1:  # This should never happen, but anyway...
             return
 
         # Now either append the bit to the buffer, or rotate the buffer left and add the bit to the end.
-        if self.buffer_state == "SHIFT":
+        if self.buffer_state == BufferState.SHIFT:
             self.buffer = np.roll(self.buffer,-1)
             self.buffer[-1] = bit
-        elif self.buffer_state == "APPEND":
+        elif self.buffer_state == BufferState.APPEND:
             self.buffer = np.append(self.buffer, bit)
 
             if len(self.buffer) == (self.payload_length_cap * 8 + 64):  # If the buffer has reached the maximum size, switch to the "SHIFT" state.
                 logging.debug("Buffer full, now shifting data in.")
-                self.buffer_state = "SHIFT"
+                self.buffer_state = BufferState.SHIFT
 
         # Test the buffer for validity
         self.test_buffer()
@@ -134,7 +139,7 @@ class DePacketizer(object):
             data = np.unpackbits(np.fromstring(data ,dtype=np.uint8))
         else:
             return
-        
+
         logging.debug("Incoming Data: " + str(data))
 
         for bit in data:
@@ -151,20 +156,19 @@ if __name__ == "__main__":
 
     # Callback function. This is where you'd pass packts onto Habitat or whatever.
     def print_payload(payload):
-        print payload
+        print(payload)
 
     # Generate some packets, and intersperse random data between them.
     import Packetizer as p
     import random,string
     p = p.Packetizer()
 
-    data = ''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(32))
-    data = data + p.pack_message("testing")
-    data2 = ''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(16))
-    data2 = data2 + p.pack_message("testing again")
+    data = ''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(32)).encode()
+    data = data + p.pack_message(b'testing')
+    data2 = ''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(16)).encode()
+    data2 = data2 + p.pack_message(b'testing again')
 
     # Pass data through the DePacketizer
     dp = DePacketizer(callback=print_payload)
     dp.process_data(data)
     dp.process_data(data2)
-        

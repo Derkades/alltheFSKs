@@ -2,21 +2,22 @@
 # MFSKDemodulator.py - MFSK Demodulator
 #
 # Copyright 2014 Mark Jessop <mark.jessop@adelaide.edu.au>
-# 
+#
 # This library is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU Lesser General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-from pylab import *
+# from pylab import *
+import sys
 import numpy as np
 from scipy.io import wavfile
 from scipy.signal import hilbert
@@ -24,7 +25,7 @@ from ModemUtils import *
 import logging
 
 class MFSKDemodulator(object):
-    """ MFSK Demodulator Class 
+    """ MFSK Demodulator Class
 
     sample_rate:    Sample rate of incoming data (Hz)
     base_freq:      The frequncy of the lowest MFSK tone (Hz)
@@ -148,7 +149,7 @@ class MFSKDemodulator(object):
                 logging.debug("Cheating..")
                 self.detect_symbol("C")
         else:
-            # Zero crossing symbol detection: Detect the zero crossing of the DFT phase. 
+            # Zero crossing symbol detection: Detect the zero crossing of the DFT phase.
             # This indicates that the last (symbol_length) symbols in the buffer contain a symbol.
             if(dft_energy<1.0 and self.last_dftphase > 5.5 and self.symbol_gap > (self.symbol_length*0.8)):
                 self.detect_symbol("D")
@@ -197,7 +198,7 @@ class MFSKDemodulator(object):
 
 
     def decayavg(self, average, input, weight):
-        """ 
+        """
         Decaying average, ported from fldigi.
         """
         if (weight <= 1.0):
@@ -265,7 +266,7 @@ if __name__ == "__main__":
     # Feed data in X samples at a time. This kind of simulates getting data from a buffered audio stream.
     chunk_size = 1024
     i = 0
-    while (i+chunk_size < len(data)): 
+    while (i+chunk_size < len(data)):
         demod.consume(data[i:i+chunk_size])
         i = i + chunk_size
 

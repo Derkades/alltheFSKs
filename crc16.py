@@ -4,17 +4,17 @@
 # I should probably be using pythons inbuilt CRC module instead of this.
 #
 # Copyright 2014 Mark Jessop <mark.jessop@adelaide.edu.au>
-# 
+#
 # This library is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU Lesser General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -61,5 +61,5 @@ def crc16_buff(buff):
     return crc
 
 def crc16_floating(next_byte, seed):
-    return ((seed << 8) ^ crc16tab[(seed >> 8) ^ (ord(next_byte) & 0x00FF)])\
+    return ((seed << 8) ^ crc16tab[(seed >> 8) ^ (next_byte & 0x00FF)])\
         & 0xFFFF
